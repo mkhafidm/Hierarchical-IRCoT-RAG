@@ -2,10 +2,11 @@
 EMBED_MODEL = "/kaggle/input/models/mkhafid99/multilingual-e5-large-instruct/transformers/default/1"
 LLM_MODEL   = "/kaggle/input/models/mkhafid99/qwen2-5-7b-instruct-awq/transformers/default/1"
 DB_CONFIG = {
-    "NarrativeQA": "/kaggle/working/narrativeqa_qdrant_db_new",
-    "Qasper": "/kaggle/working/qasper_qdrant_db_new",
-    "Quality": "/kaggle/working/quality_qdrant_db_new",
-    "TyDiQA": "/kaggle/working/tydiqa_qdrant_db_new",
+    "NarrativeQA":  "/kaggle/working/narrativeqa_qdrant_db_new",
+    "Qasper":       "/kaggle/working/qasper_qdrant_db_new",
+    "Quality":      "/kaggle/working/quality_qdrant_db_new",
+    "TyDiQA":       "/kaggle/working/tydiqa_qdrant_db_new",
+    "User":         "/kaggle/working/user_qdrant_db",
 }
 
  

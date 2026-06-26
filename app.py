@@ -1,7 +1,7 @@
 import streamlit as st
 import logging
 import sys
-
+import os
 from config import COLLECTION_NODES, VLLM_URL, DB_CONFIG, LLM_MODEL
 from model_loader import load_embedding_model, load_tokenizer_e5, load_tokenizer_llm, load_llm_client
 from qdrant import load_client
@@ -249,8 +249,8 @@ def get_qdrant_client(dataset: str):
 
 @st.cache_resource
 def get_universal_client():
-    first_dataset = list(DB_CONFIG.keys())[0]
-    return load_client(first_dataset)
+    os.makedirs("/kaggle/working/user_qdrant_db", exist_ok=True)
+    return load_client("User")
 
 
 # ── Helper: get all doc_ids ───────────────────────────────────────────────────
@@ -339,9 +339,6 @@ with st.sidebar:
         index=default_dataset_idx,
         label_visibility="collapsed",
     )
-    
-    # selected_dataset = st.selectbox("Pilih Dataset", dataset_options, index=0,
-    #                                 label_visibility="collapsed")
 
     if selected_dataset == "User Dataset":
         collection_name = "user_hierarchical_nodes"
@@ -377,27 +374,6 @@ with st.sidebar:
         st.warning(f"Gagal load doc list: {e}")
         manual = st.text_input("Doc ID (manual)")
         doc_id_filter = manual.strip() or None
-        
-    # try:
-    #     all_doc_ids = get_all_doc_ids(selected_dataset, collection_name)
-    #     if all_doc_ids:
-    #         selected_doc = st.selectbox(
-    #             "Pilih Doc ID",
-    #             all_doc_ids,
-    #             index=0,
-    #             label_visibility="collapsed",
-    #             key="sidebar_doc_filter"
-    #         )
-    #         doc_id_filter = selected_doc
-    #         # doc_id_filter = st.selectbox("Pilih Doc ID", all_doc_ids, index=0,
-    #         #                              label_visibility="collapsed")
-    #     else:
-    #         st.info("Tidak ada dokumen di collection ini.")
-    #         doc_id_filter = None
-    # except Exception as e:
-    #     st.warning(f"Gagal load doc list: {e}")
-    #     manual        = st.text_input("Doc ID (manual)")
-    #     doc_id_filter = manual.strip() or None
 
     st.markdown("---")
     st.markdown("**⚙️ Hyperparameters**")

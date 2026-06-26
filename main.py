@@ -4,16 +4,31 @@ from server import start_server, wait_for_server
 import shutil, os
 
 # 1. Copy DB
-SRC = "/kaggle/input/datasets/mkhafid99/database-for-gui"
+# SRC = "/kaggle/input/datasets/mkhafid99/database-for-gui"
+# DST = "/kaggle/working"
+
+# for db in os.listdir(SRC):
+#     dst_path = f"{DST}/{db}"
+#     if not os.path.exists(dst_path):
+#         print(f"Copying {db}...")
+#         shutil.copytree(f"{SRC}/{db}", dst_path)
+#     else:
+#         print(f"✅ {db} sudah ada, skip.")
+SRC_BASE = "/kaggle/input/datasets/mkhafid99/database-for-gui"
 DST = "/kaggle/working"
 
-for db in os.listdir(SRC):
+datasets = ["narrativeqa_qdrant_db_new", "qasper_qdrant_db_new", "quality_qdrant_db_new", "tydiqa_qdrant_db_new"]
+
+for db in datasets:
+    src_path = f"{SRC_BASE}/{db}/kaggle/working/{db}"
     dst_path = f"{DST}/{db}"
     if not os.path.exists(dst_path):
         print(f"Copying {db}...")
-        shutil.copytree(f"{SRC}/{db}", dst_path)
+        shutil.copytree(src_path, dst_path)
+        print(f"✅ {db} done.")
     else:
         print(f"✅ {db} sudah ada, skip.")
+
 
 print("✅ Semua DB siap!")
 
