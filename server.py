@@ -75,21 +75,3 @@ def monitor_vllm(interval=10):
         except:
             pass
         time.sleep(interval)
-
-# # ── Main ─────────────────────────────────────────────────
-# proc = start_server()
-# # threading.Thread(target=stream_logs, args=(proc,), daemon=True).start()
-# wait_for_server()
-
-# # Start monitoring di background
-# threading.Thread(target=monitor_vllm, daemon=True).start()
-
-# # ── Client ───────────────────────────────────────────────
-# from openai import OpenAI
-# import httpx
-
-# client = OpenAI(
-#     api_key="dummy",
-#     base_url="http://localhost:8000/v1",
-#     timeout=httpx.Timeout(60.0, connect=10.0)
-# )

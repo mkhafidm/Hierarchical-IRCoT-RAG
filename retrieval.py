@@ -26,7 +26,6 @@ def get_embedding(query: str, embedding_model, tokenizer) -> list:
 
     token_count = len(tokenizer.encode(prepared_query))
     if token_count > 500:
-        # print(f"Tracing: Query cukup panjang ({token_count} tokens)")
         logging.info(f"[STAGE EMBEDDING]: Query terlalu panjang: ({token_count}) tokens")
     
     embedding = embedding_model.encode(
@@ -99,7 +98,6 @@ def fetch_tree_details(client, roots_relevan, collection):
         payload = record.payload
         payload['d_uuid'] = str(record.id)
         pid = payload.get('doc_id')
-        # node_id = record.id
         node_id = str(record.id)
         
         if pid not in tree_storage:
@@ -127,14 +125,7 @@ def calculate_similarity(v1, v2):
 
 
 def get_ircot_guidance(query, cot_history, factual_context_list, current_title, llm_client, tokenizer_llm, tokenizer_e5):
-    """Hasilkan guidance step menggunakan LLM (IRCoT)."""
-    
-    # from vllm import SamplingParams  # pastikan vllm terinstal
-    
-    # sampling_params = SamplingParams(
-    #     temperature=0.0, top_p=1.0, max_tokens=128
-    # )
-    
+    """Hasilkan guidance step menggunakan LLM (IRCoT)."""    
     factual_context = ""
     for i, txt in enumerate(factual_context_list):
         factual_context += f"Passage {i+1}:\n{txt}\n\n"
@@ -181,24 +172,13 @@ Next reasoning step:"""
         {"role": "user", "content": prompt},
     ]
     
-    # Token check optional
     full_tokens = tokenizer_llm.apply_chat_template(
         messages, tokenize=True, add_generation_prompt=True
     )
     if len(full_tokens) > 3000:
         print(f"🚨 [TOKEN ALERT] {len(full_tokens)} tokens")
     
-    # outputs = llm_engine.chat(messages, sampling_params, use_tqdm=False)
-    # Gunakan OpenAI client
-    # response = llm_client.chat.completions.create(
-    #     model=LLM_MODEL,
-    #     messages=messages,
-    #     temperature=0.0,
-    #     max_tokens=128,
-    #     top_p=1.0
-    # )
-    
-    # ── Panggil LLM dengan timeout 60 detik ─────────────────────
+    # ── Panggil LLM ─────────────────────
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(
             llm_client.chat.completions.create,
@@ -214,10 +194,8 @@ Next reasoning step:"""
             raise TimeoutError(f"vLLM timeout pada node '{current_title}'")
         except Exception as e:
             logging.error(f"LLM error pada node '{current_title}': {e}")
-            raise  # re-raise biar ketangkep di atas
-    
-    
-    # reasoning_result = outputs[0].outputs[0].text.strip()
+            raise  
+
     reasoning_result = response.choices[0].message.content.strip()
     
     # Truncate untuk E5
@@ -251,7 +229,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
     node = paper_tree.get(str(node_uuid))
     if node is None:
         return []
-    # print(f"[TIMESTAMP] {time.strftime('%H:%M:%S')} - ENTER node {node.get('node_index')} layer {node.get('layer')}")
     logging.info(f"[TIMESTAMP] {time.strftime('%H:%M:%S')} - ENTER node {node.get('node_index')} layer {node.get('layer')}")
 
     GREEN = '\033[92m'
@@ -273,23 +250,10 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
     updated_path_uuids = path_uuids + [node_uuid]
     current_title      = node.get('title', "Unknown Title")
 
-    # logging.info(f"{indent}>>> Node {node_idx} (Layer {node_layer})")
     logging.info(f"{indent}>>> Node {node_idx} (Layer {node_layer}) | Score={current_score:.4f} | Children={len(children_uuids)}")
-
-    # n_children = len(children_uuids)
-    # print(f"\n{indent}{'─'*40}")
-    # print(f"{indent}📍 Kunjungi Node {node_idx} "
-    #       f"(Layer {node_layer}) | "
-    #       f"Score={current_score:.4f} | "
-    #       f"Jumlah child: {n_children}")
-    # print(f"{indent}   Teks (50 char): \"{current_node_text[:50]}...\"")
 
     # Leaf node
     if not children_uuids:
-        # logging.info(f"{indent}🟢 LEAF reached.")
-        # print(f"{indent}🟢 LEAF NODE — tidak ada child.")
-        # print(f"{indent}{GREEN}{BOLD}✅ [COLLECT LEAF] "
-        #       f"Node {node_idx} masuk context.{RESET}")
         logging.info(f"{indent}🟢 LEAF reached. Node {node_idx} collected.")
         node_copy = {**node, 'retrieval_score': current_score}
         return [node_copy]
@@ -297,7 +261,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
     # Reasoning
     use_reasoning = (w_query < 1.0)
     if use_reasoning:
-        # print(f"[TIMESTAMP] {time.strftime('%H:%M:%S')} - REASONING START node {node_idx}")
         logging.info(f"{indent}🧠 Reasoning triggered for node {node_idx}")
         current_guidance = get_ircot_guidance(
             query=query_text,
@@ -308,15 +271,13 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
             tokenizer_llm=tokenizer_llm,
             tokenizer_e5=tokenizer_e5
         )
-        # guidance_vector  = get_embedding(current_guidance, embedding_model, tokenizer_e5)
-        # new_cot_history  = cot_list + [current_guidance]
-        logging.info(f"{indent}[DEBUG] LLM done node {node_idx}, now embedding...")  # ← tambah
+        logging.info(f"{indent}[DEBUG] LLM done node {node_idx}, now embedding...") 
     
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(get_embedding, current_guidance, embedding_model, tokenizer_e5)
             try:
                 guidance_vector = future.result(timeout=30)
-                logging.info(f"{indent}[DEBUG] Embedding done node {node_idx}")  # ← tambah
+                logging.info(f"{indent}[DEBUG] Embedding done node {node_idx}")
             except concurrent.futures.TimeoutError:
                 logging.warning(f"{indent}[DEBUG] Embedding TIMEOUT node {node_idx}, fallback ke query_vector")
                 guidance_vector = query_vector
@@ -332,9 +293,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
             "guidance"   : current_guidance,
             "guidance_len"    : len(current_guidance.split()),
         })
-        # print(f"\n{indent}🧠 [REASONING] Layer {node_layer} | Node {node_idx}")
-        # print(f"{indent}   Guidance: \"{current_guidance[:100]}...\"")
-        # print(f"[TIMESTAMP] {time.strftime('%H:%M:%S')} - REASONING END node {node_idx}")
         logging.info(f"{indent}Reasoning: {current_guidance[:100]}...")
     else:
         current_guidance = ""
@@ -360,7 +318,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
     backtracked_nodes = []
     explored_nodes   = []
 
-    # print(f"\n{indent}🔍 Evaluasi {len(children_uuids)} child node:")
     logging.info(f"{indent}🔍 Evaluating {len(children_uuids)} children...")
 
     for c_uuid in children_uuids:
@@ -370,26 +327,18 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
 
         child_vector = child_node.get('vector')
         if child_vector is None:
-            # logging.warning(f"child {c_uuid} has no vector, skip")
             logging.warning(f"{indent}  Child {c_uuid} has no vector, skip.")
             continue
 
         logging.info(f"{indent}  [DEBUG] Got vector, computing similarity...")
         c_idx          = child_node.get('node_index')
         c_layer        = child_node.get('layer')
-        # c_score        = calculate_similarity(query_vector, child_node['vector'])
-        # reason_score   = calculate_similarity(guidance_vector, child_node['vector'])
-        
         c_score = calculate_similarity(query_vector, child_vector)
         try:
             reason_score = calculate_similarity(guidance_vector, child_vector)
         except Exception as e:
             logging.error(f"reason_score failed: {e}", exc_info=True)
             raise
-        # reason_score = calculate_similarity(guidance_vector, child_vector)
-        # logging.info(f"{indent}  [DEBUG] reason_score done: {reason_score:.4f}")
-        # combined_score = (w_query * c_score) + ((1 - w_query) * reason_score)
-        # c_delta        = combined_score - current_score
 
         combined_score = (w_query * c_score) + ((1 - w_query) * reason_score)
         c_delta = combined_score - current_score
@@ -399,20 +348,14 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
         if combined_score < similarity_t:
             pruned_nodes.append({"node_index": c_idx, "layer": c_layer,
                                  "combined_score": combined_score, "delta": None})
-            # print(f"{indent}   🔴 PRUNED  Node {c_idx}: "
-            #       f"score={combined_score:.4f} < τ={similarity_t} → dibuang")
             logging.info(f"{indent}   🔴 PRUNED child {c_idx}: score={combined_score:.4f} < τ={similarity_t}")
             continue
 
         elif c_delta < delta_t:
             backtracked_nodes.append({"node_index": c_idx, "layer": c_layer,
                                       "combined_score": combined_score, "delta": c_delta})
-            # print(f"{indent}   🟡 BACKTRACK Node {c_idx}: "
-            #       f"Δ={c_delta:.4f} < δ={delta_t} → tidak cukup informatif")
             logging.info(f"{indent}   🟡 BACKTRACK child {c_idx}: Δ={c_delta:.4f} < δ={delta_t}, collect parent {node_idx}")
             if not parent_collected:
-                # print(f"{indent}   {GREEN}✅ [COLLECT PARENT] "
-                #       f"Node {node_idx} (Layer {node_layer}) dikumpulkan sebagai konteks.{RESET}")
                 node_copy = {**node, 'retrieval_score': current_score}
                 collected_context.append(node_copy)
                 parent_collected = True
@@ -421,8 +364,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
         else:
             explored_nodes.append({"node_index": c_idx, "layer": c_layer,
                                    "combined_score": combined_score, "delta": c_delta})
-            # print(f"{indent}   🔵 EXPLORE Node {c_idx} (Layer {c_layer}): "
-            #       f"score={combined_score:.4f}, Δ={c_delta:.4f} → masuk lebih dalam")
             logging.info(f"{indent}   🔵 EXPLORE child {c_idx}: score={combined_score:.4f}, Δ={c_delta:.4f}")
             res = recursive_hiro_ircot(
                 node_uuid=c_uuid,
@@ -445,9 +386,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
                 visited=visited
             )
             collected_context.extend(res)
-            # print(f"{indent}   ⬆️  [Backtrack] ke parent  {node_idx} (Layer {node_layer})")
-            # logging.info(f"{indent}   ⬆️  [Backtrack] ke parent {node_idx}")
-            # print(f"[TIMESTAMP] {time.strftime('%H:%M:%S')} - CHILD {c_idx} AFTER recursion")
 
     # Update trace
     global_trace[current_trace_idx].update({
@@ -460,7 +398,6 @@ def recursive_hiro_ircot(node_uuid, current_score, query_vector, query_text,
     })
 
     unique_results = list({n['d_uuid']: n for n in collected_context}.values())
-    # print(f"[TIMESTAMP] {time.strftime('%H:%M:%S')} - EXIT node {node_idx}")
     logging.info(f"{indent}<<< EXIT node {node_idx}, collected {len(unique_results)} nodes")
     return unique_results
 
@@ -476,9 +413,9 @@ def run_hiro_ircot_pipeline_single(
     delta_t: float,
     limit_root: int,
     embedding_model,
-    tokenizer_e5,              # tokenizer untuk embedding
-    llm_client,                # vLLM engine
-    tokenizer_llm,             # tokenizer untuk LLM
+    tokenizer_e5,              
+    llm_client,           
+    tokenizer_llm,           
     top_k: int = 50,
     doc_id_filter=None
 ):
@@ -517,23 +454,11 @@ def run_hiro_ircot_pipeline_single(
         logging.warning(f"RESULT: No roots passed threshold {similarity_t}")
         return [], {"times": {"total_overall": time.time() - overall_start}}
 
-    # Print query & root filtering (optional untuk debug)
-    # print(f"\n{'='*60}")
-    # print(f"📝 QUERY: {query_text}")
-    # print(f"{'='*60}")
-    # print(f"\n📌 STAGE 2: Root Filtering")
-    # print(f"   {len(filtered_roots_relevant)} root node lolos threshold τ={similarity_t}:")
     logging.info(f"📝 QUERY: {query_text}")
     logging.info(f"📌 Root Filtering: {len(filtered_roots_relevant)} roots passed threshold {similarity_t}")
     for i, r in enumerate(filtered_roots_relevant):
         logging.info(f"   [{i+1}] doc_id={r.payload.get('doc_id')} | title={r.payload.get('title','?')[:50]} | score={r.score:.4f}")
     logging.info(f"🌳 Tree traversal started")
-        # print(f"   [{i+1}] doc_id={r.payload.get('doc_id')} | "
-        #       f"title={r.payload.get('title','?')[:50]} | "
-        #       f"score={r.score:.4f}")
-    # print(f"\n{'='*60}")
-    # print(f"🌳 STAGE 4: Tree Traversal Dimulai")
-    # print(f"{'='*60}")
 
     # Stage 3: Fetch tree
     t3_start = time.time()
@@ -553,11 +478,6 @@ def run_hiro_ircot_pipeline_single(
         paper_tree = tree_detail_storage.get(pid)
         if not paper_tree:
             continue
-
-        # print(f"\n{'─'*60}")
-        # print(f"🌲 ROOT [{i_root+1}/{len(filtered_roots_relevant)}]: doc_id={pid}")
-        # print(f"   Score : {root_point.score:.4f}")
-        # print(f"{'─'*60}")
 
         logging.info(f"🌲 ROOT [{i_root+1}/{len(filtered_roots_relevant)}]: doc_id={pid}, score={root_score:.4f}")
 
@@ -586,8 +506,7 @@ def run_hiro_ircot_pipeline_single(
             all_final_contexts.extend(paper_context)
         except Exception as e:
             logging.error(f"Traversal gagal untuk root {pid}: {e}")
-            # print(f"❌ ERROR pada root {pid}: {e}")
-            continue  # atau raise jika ingin berhenti total
+            continue
     
     final_unique = list({n['d_uuid']: n for n in all_final_contexts}.values())
     sorted_contexts = sorted(final_unique, key=lambda x: x.get('retrieval_score', 0), reverse=True)
@@ -650,24 +569,10 @@ def run_hiro_ircot_pipeline_single(
     logging.info(f"   Node dikembalikan (top-k={top_k}): {len(final_top_k_nodes)}")
     logging.info(f"   Distribusi layer: {layer_dist}")
 
-    # print(f"\n{'='*60}")
-    # print(f"✅ TRAVERSAL SELESAI")
-    # print(f"   Total node terkumpul (pre top-k) : {len(final_unique)}")
-    # print(f"   Node dikembalikan (top-k={top_k})  : {len(final_top_k_nodes)}")
-    # print(f"   Distribusi layer hasil akhir:")
-    # for layer, count in sorted(layer_dist.items()):
-    #     print(f"     Layer {layer}: {count} node")
-    # print(f"{'='*60}\n")
-
-    # Cleanup (opsional)
     for node in final_top_k_nodes:
         node.pop('vector', None)
             
     del tree_detail_storage, all_final_contexts, final_unique, sorted_contexts
     gc.collect()
-
-    # Jika Anda menggunakan torch dan cuda, bisa diaktifkan di GUI nanti
-    # if torch.cuda.is_available():
-    #     torch.cuda.empty_cache()
 
     return final_top_k_nodes, raw_metadata

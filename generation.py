@@ -1,4 +1,3 @@
-# from vllm import SamplingParams
 from openai import OpenAI
 from config import LLM_MODEL
 
@@ -53,90 +52,10 @@ def format_hiro_context(nodes):
     
     return context_str.strip()
 
-# def generate_answer_openended(
-#     query: str,
-#     context_nodes: list,
-#     llm_client,           # vLLM engine (dari model_loader)
-#     tokenizer_llm,        # tokenizer untuk LLM yang sama
-#     max_prompt_limit: int = 5500
-# ) -> str:
-#     """
-#     Menghasilkan jawaban final berdasarkan konteks yang diperoleh dari HIRO retrieval.
-    
-#     Parameters:
-#     - query: pertanyaan pengguna
-#     - context_nodes: list node hasil run_hiro_ircot_pipeline_single
-#     - llm_engine: vLLM engine (sudah dimuat)
-#     - tokenizer_llm: tokenizer yang sesuai dengan LLM
-#     - max_prompt_limit: batas maksimum token total prompt (konteks + instruksi)
-    
-#     Returns:
-#     - string jawaban final
-#     """
-#     context_combined = format_hiro_context(context_nodes)
-    
-#     TEMPLATE = (
-#         "Context:\n"
-#         "[CONTEXT_AREA]\n\n"
-#         "Question: [QUERY]\n\n"
-#         "Instructions:\n"
-#         "1. Answer using ONLY the provided context.\n"
-#         "2. Be concise and direct — 1-2 sentences maximum.\n"
-#         "3. If the answer is a specific name, number, or term, state it explicitly.\n"
-#         "4. If the context is insufficient, briefly state what the context does discuss.\n"
-#         "5. Do NOT use phrases like 'Based on the context' or 'According to'.\n\n"
-#         "Answer:"
-#     )
-    
-#     # Hitung token overhead tanpa context
-#     static_prompt = TEMPLATE.replace("[CONTEXT_AREA]", "").replace("[QUERY]", query)
-#     static_tokens = len(tokenizer_llm.encode(static_prompt))
-#     allowed_context_tokens = max_prompt_limit - static_tokens
-    
-#     # Truncate jika panjang
-#     context_tokens = tokenizer_llm.encode(context_combined)
-#     if len(context_tokens) > allowed_context_tokens:
-#         truncated = context_tokens[:allowed_context_tokens - 20]
-#         context_combined = (
-#             tokenizer_llm.decode(truncated, skip_special_tokens=True)
-#             + "\n[CONTEXT TRUNCATED]"
-#         )
-    
-#     # Susun prompt final
-#     final_prompt = TEMPLATE.replace("[CONTEXT_AREA]", context_combined)
-#     final_prompt = final_prompt.replace("[QUERY]", query)
-    
-#     # sampling_params = SamplingParams(temperature=0.0, top_p=1.0, max_tokens=256)
-    
-#     messages = [
-#         {
-#             "role": "system",
-#             "content": (
-#                 "You are a precise question answering assistant. "
-#                 "Answer questions based strictly on the provided context. "
-#                 "Never hallucinate or use outside knowledge."
-#             )
-#         },
-#         {"role": "user", "content": final_prompt},
-#     ]
-    
-#     # outputs = llm_engine.chat(messages, sampling_params, use_tqdm=False)
-#     response = llm_client.chat.completions.create(
-#         model=LLM_MODEL,
-#         messages=messages,
-#         temperature=0.0,
-#         max_tokens=256,
-#         top_p=1.0
-#     )
-
-#     # raw = outputs[0].outputs[0].text.strip()
-#     # return raw
-#     return response.choices[0].message.content.strip()
-
 
 def generate_answer_multiple_choice(
     query: str,
-    options: str,           # sudah diformat "A. ...\nB. ...\nC. ...\nD. ..."
+    options: str,          
     context_nodes: list,
     llm_client,
     tokenizer_llm,
@@ -181,8 +100,6 @@ def generate_answer_multiple_choice(
     final_prompt = TEMPLATE.replace("[CONTEXT_AREA]", context_combined)
     final_prompt = final_prompt.format(query=query, options=options)
     
-    # sampling_params = SamplingParams(temperature=0.0, top_p=1.0, max_tokens=512)
-    
     messages = [
         {
             "role": "system",
@@ -194,8 +111,7 @@ def generate_answer_multiple_choice(
         },
         {"role": "user", "content": final_prompt},
     ]
-    
-    # outputs = llm_engine.chat(messages, sampling_params, use_tqdm=False)
+
     response = llm_client.chat.completions.create(
         model=LLM_MODEL,
         messages=messages,
@@ -203,25 +119,7 @@ def generate_answer_multiple_choice(
         max_tokens=256,
         top_p=1.0
     )
-
-    # raw = outputs[0].outputs[0].text.strip()
-    # return raw
     return response.choices[0].message.content.strip()
-
-# Parser untuk ekstrak jawaban MC
-# def parse_mc_answer(raw_output):
-#     import re
-#     match = re.search(r'Answer:\s*([A-D])', raw_output, re.IGNORECASE)
-#     if match:
-#         return match.group(1).upper()
-#     # Fallback: cari huruf standalone
-#     match = re.findall(r'\b([A-D])\b', raw_output)
-#     if match:
-#         return match[-1].upper()
-#     return None
-
-
-
 
 def generate_answer_openended(query, context_nodes, llm_client, tokenizer_llm, max_prompt_limit=5500):
     print("[GEN] Starting...")
@@ -297,13 +195,11 @@ def generate_answer_openended(query, context_nodes, llm_client, tokenizer_llm, m
         return f"Generation error: {e}"
 
 
-# Parser untuk ekstrak jawaban MC
 def parse_mc_answer(raw_output):
     import re
     match = re.search(r'Answer:\s*([A-D])', raw_output, re.IGNORECASE)
     if match:
         return match.group(1).upper()
-    # Fallback: cari huruf standalone
     match = re.findall(r'\b([A-D])\b', raw_output)
     if match:
         return match[-1].upper()

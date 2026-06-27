@@ -18,8 +18,8 @@ def run_full_pipeline(
     tokenizer_e5,
     llm_client,
     tokenizer_llm,
-    dataset_type: str = "openended",       # "openended" or "multiple_choice"
-    options: str = None,                   # untuk multiple choice (format "A. ...\nB. ...")
+    dataset_type: str = "openended",       
+    options: str = None,                  
     w_query: float = 0.7,
     similarity_t: float = 0.65,
     delta_t: float = 0.05,
@@ -104,7 +104,7 @@ def run_full_pipeline(
     retrieved_ids = [n.get('d_uuid', '') for n in context_nodes]
     retrieved_scores = [n.get('retrieval_score', 0.0) for n in context_nodes]
     retrieved_layers = [n.get('layer', -1) for n in context_nodes]
-    nodes_data = meta_ret.get("nodes_data", [])  # sudah berisi d_uuid, layer, doc_id, node_index
+    nodes_data = meta_ret.get("nodes_data", []) 
 
     # ──────────────── Metadata Lengkap ────────────────
     metadata = {

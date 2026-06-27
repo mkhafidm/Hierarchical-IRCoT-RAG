@@ -10,7 +10,6 @@ import umap
 from qdrant_client.http.models import PointStruct
 from config import LLM_MODEL
 
-# Setup logger
 logger = logging.getLogger(__name__)
 
 class Node:
@@ -27,7 +26,7 @@ class Node:
         children: Optional[Set[int]] = None,
         parents: Optional[Set[int]] = None,
         layer: int = 0,
-        cluster_id: Optional[str] = None,   # Diubah dari int → str
+        cluster_id: Optional[str] = None,  
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.index = index
@@ -287,7 +286,7 @@ def summarize_cluster(all_cluster_texts, llm_client, max_tokens=512):
             all_summaries.append(summary)
         except Exception as e:
             logger.error(f"Summarization error: {e}")
-            all_summaries.append("")   # fallback kosong
+            all_summaries.append("") 
     return all_summaries
 
 
@@ -300,9 +299,8 @@ def build_tree_from_text(
     doc_id: str,
     title: str,
     embedding_model,
-    tokenizer,            # tokenizer untuk chunking (bisa tokenizer_e5)
-    llm_client,           # vLLM engine
-    # LLM_MODEL: str,  # not used, kept for compatibility
+    tokenizer,            
+    llm_client,         
     max_chunk_tokens: int = 100,
     max_layers: int = 5,
     min_nodes_to_cluster: int = 3,
@@ -337,7 +335,7 @@ def build_tree_from_text(
         layer_to_nodes[0].append(next_idx)
         next_idx += 1
 
-    current_nodes = dict(leaf_nodes)  # nodes to process for next layer
+    current_nodes = dict(leaf_nodes)  
 
     # Build higher layers
     for layer in range(1, max_layers+1):
@@ -349,13 +347,12 @@ def build_tree_from_text(
         # Prepare embeddings for current layer
         node_ids = list(current_nodes.keys())
         node_list = [current_nodes[i] for i in node_ids]
-        if not node_list:  # safety check
+        if not node_list:  
             break
         layer_embs = np.vstack([n.embeddings for n in node_list])
 
         # Clustering
         memberships, _, _ = main_clustering(layer_embs, max_clusters=max_clusters_global)
-        # Build cluster -> node indices mapping
         cluster_to_positions = defaultdict(list)
         for pos, cluster_ids in enumerate(memberships):
             for cid in cluster_ids:
@@ -371,7 +368,7 @@ def build_tree_from_text(
             child_texts = [c.text for c in children]
             # Token limit check (optional split)
             total_tokens = sum(len(tokenizer.encode(t, add_special_tokens=False)) for t in child_texts)
-            if total_tokens > max_chunk_tokens * 5:   # arbitrary threshold for splitting cluster
+            if total_tokens > max_chunk_tokens * 5:   
                 logger.info(f"Cluster {cid} too large ({total_tokens} tokens), splitting further")
                 sub_embs = np.vstack([c.embeddings for c in children])
                 sub_memberships, _, _ = main_clustering(sub_embs, max_clusters=10)
@@ -390,8 +387,6 @@ def build_tree_from_text(
                 all_cluster_children.append(children)
                 cluster_ids_ordered.append(str(cid))
 
-        # Summarize clusters (tokenizer parameter diterima tapi tidak dipakai)
-        # summaries = summarize_cluster(all_cluster_texts, llm_client, tokenizer, max_tokens=512)
         summaries = summarize_cluster(all_cluster_texts, llm_client, max_tokens=512)
 
         # Embed summaries
@@ -448,10 +443,10 @@ def build_tree_from_text(
 # -------------------------------------------------------------------
 def save_tree_to_qdrant(
     qdrant_client,
-    tree_dict: Tree,                  # Tree object
+    tree_dict: Tree,                  
     collection_nodes: str,
     collection_stats: str,
-    tokenizer_for_token_count=None,   # optional
+    tokenizer_for_token_count=None,  
 ) -> None:
     """
     Save tree nodes and statistics into Qdrant collections.
@@ -480,7 +475,7 @@ def save_tree_to_qdrant(
     # Save stats
     stats_point = PointStruct(
         id=str(uuid.uuid5(uuid.NAMESPACE_DNS, f"stats_{doc_id}")),
-        vector=[0.0],   # dummy vector, collection must have size 1
+        vector=[0.0],  
         payload={
             "doc_id": doc_id,
             "title": tree_dict.metadata.get("title", "Unknown"),
@@ -522,7 +517,6 @@ def save_tree_to_qdrant(
             }
         ))
 
-    # Upsert in chunks of 100
     for i in range(0, len(node_points), 100):
         qdrant_client.upsert(collection_name=collection_nodes, points=node_points[i:i+100])
 

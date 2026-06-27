@@ -326,7 +326,6 @@ with st.sidebar:
     st.markdown("**📂 Dataset**")
     dataset_options  = list(COLLECTION_NODES.keys()) + ["User Dataset"]
     
-    # Cek apakah ada permintaan force dataset (setelah upload)
     force_dataset = st.session_state.pop("force_dataset", None)
     if force_dataset and force_dataset in dataset_options:
         default_dataset_idx = dataset_options.index(force_dataset)
@@ -412,7 +411,6 @@ with st.sidebar:
                         embedding_model=embedding_model,
                         tokenizer=tokenizer_e5,
                         llm_client=llm_client,
-                        # llm_model_name=LLM_MODEL,
                         max_chunk_tokens=100,
                         max_layers=5,
                         min_nodes_to_cluster=3,
@@ -428,7 +426,6 @@ with st.sidebar:
 
                     st.success(f"✅ Tersimpan! Doc ID: `{doc_id}`")
                     st.cache_data.clear()
-                    # Set force values untuk redirect ke User Dataset dan doc baru
                     st.session_state.force_dataset = "User Dataset"
                     st.session_state.force_doc = doc_id
                     st.rerun()

@@ -4,9 +4,7 @@ from transformers import AutoTokenizer
 from openai import OpenAI
 from config import EMBED_MODEL, LLM_MODEL, VLLM_URL
 
-# @st.cache_resource
-# def load_embedding_model():
-#     return SentenceTransformer(EMBED_MODEL, device="cpu")
+
 @st.cache_resource
 def load_embedding_model():
     return SentenceTransformer(EMBED_MODEL, device="cuda:1")
@@ -21,5 +19,4 @@ def load_tokenizer_llm():
 
 @st.cache_resource
 def load_llm_client():
-    # OpenAI client yang terhubung ke vLLM server
     return OpenAI(base_url=VLLM_URL, api_key="dummy")
